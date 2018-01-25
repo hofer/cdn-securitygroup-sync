@@ -29,10 +29,7 @@ var (
 	AppVersion = "0.0.0-dev"
 )
 
-type Request struct {
-	ID        float64 `json:"id"`
-	Value     string  `json:"value"`
-}
+type Request struct {}
 
 type Response struct {
 	Message string `json:"message"`
@@ -60,7 +57,7 @@ func Handler(request Request) (Response, error) {
 	run()
 
 	return Response{
-		Message: fmt.Sprintf("Processed request ID %f", request.ID),
+		Message: fmt.Sprintf("Processed request"),
 		Ok:      true,
 	}, nil
 }
@@ -134,7 +131,9 @@ func findKmsArg(envName string) string {
 	envValue := os.Getenv("KMS_" + envName)
 	if envValue != "" {
 		retval, err := kmsDecrypt(envValue)
-		fmt.Println(err)
+		if err != nil {
+			fmt.Println(err)
+		}
 		return retval
 	}
 	return os.Getenv(envName)
