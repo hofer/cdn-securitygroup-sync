@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 	"strconv"
+	//"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-lambda-go/lambda"
 )
 
 var (
@@ -17,24 +19,60 @@ var (
 	printVersion   bool
 	mySSID         int
 	mySecGroup     string
+
+	edgegridHost   string
+	edgegridClientToken string
+	edgegridClientSecret string
+	edgegridAccessToken string
+
 	// AppVersion is set at compile time
 	AppVersion = "0.0.0-dev"
 )
 
+type Request struct {
+	ID        float64 `json:"id"`
+	Value     string  `json:"value"`
+}
+
+type Response struct {
+	Message string `json:"message"`
+	Ok      bool   `json:"ok"`
+}
+
 func main() {
-	// command line execution: parse command line flags
+	if 1 < len(os.Args) {
+		// command line execution: parse command line flags
+		parseFlags()
+		// run() will also be invoked by lambda handler
+		run()
+	} else {
+		lambda.Start(Handler)
+	}
+}
+
+func Handler(request Request) (Response, error) {
+
+	//log.SetFlags(0)
+	// get runtime configuration from parameter store
 	parseFlags()
+	//ssmGet(os.Getenv("SSM_SOURCE"))
 	// run() will also be invoked by lambda handler
 	run()
+
+	return Response{
+		Message: fmt.Sprintf("Processed request ID %f", request.ID),
+		Ok:      true,
+	}, nil
 }
 
 func run() {
+	config := getAkamaiConfig(edgegridHost, edgegridClientToken, edgegridClientSecret, edgegridAccessToken)
 	if printVersion {
 		println(version())
 		os.Exit(0)
 	}
 	if listSSIDs {
-		printSSIDs()
+		printSSIDs(config)
 	}
 	if mySSID == 0 && !useCloudflare {
 		exitErrorf("Required argument -ssid / environment variable AKAMAI_SSID missing")
@@ -56,7 +94,7 @@ func run() {
 		}
 	} else {
 		// get Akamai siteshield data
-		ssMap = getSiteshieldMap(mySSID)
+		ssMap = getSiteshieldMap(config, mySSID)
 		for _, cidr := range ssMap.CurrentCidrs {
 			ssCidrs[cidr] = struct{}{}
 		}
@@ -81,7 +119,7 @@ func run() {
 	}
 	if ssMap.Acknowledged == false && !useCloudflare {
 		if acknowledge {
-			acknowledgeCIDRs(mySSID)
+			acknowledgeCIDRs(config, mySSID)
 		} else {
 			log.Print("Current Akamai CIDRs NOT acknowledged -- use -acknowledge to do so!")
 		}
@@ -92,16 +130,39 @@ func run() {
 	log.Print("cdn-securitygroup-sync completed.")
 }
 
+func findKmsArg(envName string) string {
+	envValue := os.Getenv("KMS_" + envName)
+	if envValue != "" {
+		retval, err := kmsDecrypt(envValue)
+		fmt.Println(err)
+		return retval
+	}
+	return os.Getenv(envName)
+}
+
 func parseFlags() {
-	envSSID, _ := strconv.Atoi(os.Getenv("AKAMAI_SSID"))
 	flag.BoolVar(&printVersion, "version", false, "Print version and quit")
 	flag.BoolVar(&listSSIDs, "list-ss-ids", false, "List Akamai siteshield IDs and quit")
 	flag.BoolVar(&useCloudflare, "cloudflare", false, "Use Cloudflare instead of Akamai")
 	flag.BoolVar(&addMissing, "add-missing", false, "Add missing CIDRs to AWS security group")
 	flag.BoolVar(&deleteObsolete, "delete-obsolete", false, "Delete obsolete CIDRs from AWS security group")
 	flag.BoolVar(&acknowledge, "acknowledge", false, "Acknowledge updated CIDRs on Akamai")
+
+	envSSID, _ := strconv.Atoi(findKmsArg("AKAMAI_SSID"))
 	flag.IntVar(&mySSID, "ssid", envSSID, "Akamai siteshield ID")
-	flag.StringVar(&mySecGroup, "sgid", os.Getenv("AWS_SECGROUP_ID"), "AWS security group ID")
+	flag.StringVar(&mySecGroup, "sgid", findKmsArg("AWS_SECGROUP_ID"), "AWS security group ID")
+
+	flag.StringVar(&edgegridHost, "edgegrid-host", findKmsArg("AKAMAI_EDGEGRID_HOST"), "Akamai host")
+	flag.StringVar(&edgegridClientToken, "edgegrid-client-token", findKmsArg("AKAMAI_EDGEGRID_CLIENT_TOKEN"), "Akamai edgegrid client token")
+	flag.StringVar(&edgegridClientSecret, "edgegrid-client-secret", findKmsArg("AKAMAI_EDGEGRID_CLIENT_SECRET"), "Akamai edgegrid client secret")
+	flag.StringVar(&edgegridAccessToken, "edgegrid-access-token", findKmsArg("AKAMAI_EDGEGRID_ACCESS_TOKEN"), "Akamai edgegrid access token")
+
+
+	cssArgs := os.Getenv("CSS_ARGS")
+	if cssArgs != "" {
+		parseLambdaFlags(cssArgs)
+	}
+
 	flag.Parse()
 }
 

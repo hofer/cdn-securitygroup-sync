@@ -13,7 +13,7 @@ VERSION ?= $(shell git describe --tags | cut -dv -f2)
 S3_KEY ?= code/cdn-securitygroup-sync-$(VERSION).zip
 LDFLAGS := -X main.AppVersion=$(VERSION) -w
 # From: https://raw.githubusercontent.com/eawsy/aws-lambda-go-shim/master/src/Makefile.example
-HANDLER ?= handler
+HANDLER ?= main
 PACKAGE ?= $(HANDLER)
 MAKEFILE = $(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST))
 CURDIR := $(shell pwd)
@@ -34,7 +34,8 @@ dependencies:
 
 build:
 	# compile (inside docker)
-	go build -buildmode=plugin -ldflags='-w -s $(LDFLAGS)' -o $(HANDLER).so
+	go build -o $(HANDLER)
+	#go build -buildmode=plugin -ldflags='-w -s $(LDFLAGS)' -o $(HANDLER).so
 
 deploy-prebuilt:
 	# deploy stack
@@ -64,10 +65,11 @@ docker:
 
 pack:
 	# create lambda zip
-	pack $(HANDLER) $(HANDLER).so $(PACKAGE).zip
+	# pack $(HANDLER) $(HANDLER).so $(PACKAGE).zip
+	zip $(PACKAGE).zip $(HANDLER)
 
 perm:
-	chown $(shell stat -c '%u:%g' .) $(HANDLER).so $(PACKAGE).zip
+	chown $(shell stat -c '%u:%g' .) $(HANDLER) $(PACKAGE).zip
 
 run:
 	aws lambda invoke                                                            \

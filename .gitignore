@@ -4,3 +4,5 @@
 *.dylib
 *.zip
 dependencies
+.idea
+main

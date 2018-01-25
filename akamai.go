@@ -22,21 +22,31 @@ type siteShieldMap struct {
 	ProposedCidrs []string `json:"proposedCidrs"`
 }
 
-func getAkamaiConfig() edgegrid.Config {
+//func getAkamaiConfig() edgegrid.Config {
+	//return edgegrid.Config{
+	//	Host:         os.Getenv("AKAMAI_EDGEGRID_HOST"),
+	//	ClientToken:  os.Getenv("AKAMAI_EDGEGRID_CLIENT_TOKEN"),
+	//	ClientSecret: os.Getenv("AKAMAI_EDGEGRID_CLIENT_SECRET"),
+	//	AccessToken:  os.Getenv("AKAMAI_EDGEGRID_ACCESS_TOKEN"),
+	//	MaxBody:      1024,
+	//	HeaderToSign: []string{},
+	//	Debug:        false,
+	//}
+func getAkamaiConfig(host string, clientToken string, clientSecret string, accessToken string) edgegrid.Config {
 	return edgegrid.Config{
-		Host:         os.Getenv("AKAMAI_EDGEGRID_HOST"),
-		ClientToken:  os.Getenv("AKAMAI_EDGEGRID_CLIENT_TOKEN"),
-		ClientSecret: os.Getenv("AKAMAI_EDGEGRID_CLIENT_SECRET"),
-		AccessToken:  os.Getenv("AKAMAI_EDGEGRID_ACCESS_TOKEN"),
+		Host:         host,
+		ClientToken:  clientToken,
+		ClientSecret: clientSecret,
+		AccessToken:  accessToken,
 		MaxBody:      1024,
 		HeaderToSign: []string{},
 		Debug:        false,
 	}
 }
 
-func getSiteshieldMaps() siteShieldMaps {
+func getSiteshieldMaps(config edgegrid.Config) siteShieldMaps {
 	client := http.Client{}
-	config := getAkamaiConfig()
+	//config := getAkamaiConfig()
 
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s/siteshield/v1/maps", config.Host), nil)
 	exitIfError("Akamai request failed", err)
@@ -52,8 +62,8 @@ func getSiteshieldMaps() siteShieldMaps {
 	return ssMaps
 }
 
-func getSiteshieldMap(ssid int) siteShieldMap {
-	ssMaps := getSiteshieldMaps()
+func getSiteshieldMap(config edgegrid.Config, ssid int) siteShieldMap {
+	ssMaps := getSiteshieldMaps(config)
 	for _, m := range ssMaps.SiteShieldMap {
 		if m.ID == ssid {
 			return m
@@ -64,8 +74,8 @@ func getSiteshieldMap(ssid int) siteShieldMap {
 	return voidMap
 }
 
-func printSSIDs() {
-	ssMaps := getSiteshieldMaps()
+func printSSIDs(config edgegrid.Config) {
+	ssMaps := getSiteshieldMaps(config)
 	for _, m := range ssMaps.SiteShieldMap {
 		print(m.ID)
 		print("\n")
@@ -73,9 +83,9 @@ func printSSIDs() {
 	os.Exit(0)
 }
 
-func acknowledgeCIDRs(ssid int) {
+func acknowledgeCIDRs(config edgegrid.Config, ssid int) {
 	client := http.Client{}
-	config := getAkamaiConfig()
+	//config := getAkamaiConfig()
 
 	ackURL := fmt.Sprintf("https://%s/siteshield/v1/maps/%d/acknowledge", config.Host, ssid)
 	req, err := http.NewRequest("POST", ackURL, nil)
