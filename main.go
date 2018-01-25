@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"strconv"
-	//"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
@@ -20,46 +19,24 @@ var (
 	mySSID         int
 	mySecGroup     string
 
-	edgegridHost   string
-	edgegridClientToken string
+	edgegridHost         string
+	edgegridClientToken  string
 	edgegridClientSecret string
-	edgegridAccessToken string
+	edgegridAccessToken  string
 
 	// AppVersion is set at compile time
 	AppVersion = "0.0.0-dev"
 )
 
-type Request struct {}
-
-type Response struct {
-	Message string `json:"message"`
-	Ok      bool   `json:"ok"`
-}
-
 func main() {
+	// If more than one agument, we assume that this wants to be startet from
+	// commandline.
 	if 1 < len(os.Args) {
-		// command line execution: parse command line flags
 		parseFlags()
-		// run() will also be invoked by lambda handler
 		run()
 	} else {
 		lambda.Start(Handler)
 	}
-}
-
-func Handler(request Request) (Response, error) {
-
-	//log.SetFlags(0)
-	// get runtime configuration from parameter store
-	parseFlags()
-	//ssmGet(os.Getenv("SSM_SOURCE"))
-	// run() will also be invoked by lambda handler
-	run()
-
-	return Response{
-		Message: fmt.Sprintf("Processed request"),
-		Ok:      true,
-	}, nil
 }
 
 func run() {
@@ -155,7 +132,6 @@ func parseFlags() {
 	flag.StringVar(&edgegridClientToken, "edgegrid-client-token", findKmsArg("AKAMAI_EDGEGRID_CLIENT_TOKEN"), "Akamai edgegrid client token")
 	flag.StringVar(&edgegridClientSecret, "edgegrid-client-secret", findKmsArg("AKAMAI_EDGEGRID_CLIENT_SECRET"), "Akamai edgegrid client secret")
 	flag.StringVar(&edgegridAccessToken, "edgegrid-access-token", findKmsArg("AKAMAI_EDGEGRID_ACCESS_TOKEN"), "Akamai edgegrid access token")
-
 
 	cssArgs := os.Getenv("CSS_ARGS")
 	if cssArgs != "" {
