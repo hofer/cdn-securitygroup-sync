@@ -1,5 +1,8 @@
 # cdn-securitygroup-sync
 
+Note: This is a fork from https://github.com/schnoddelbotz/cdn-securitygroup-sync I just made some
+adjustments after AWS now supports go lambdas in a native way. All credits to schnoddelbotz and his work.
+
 Automates sync of AWS security groups with your CDN provider's CIDRs - currently
 [Akamai Siteshield](https://community.akamai.com/community/cloud-security/blog/2016/11/15/list-of-ipscidrs-and-ports-on-the-akamai-network-that-may-contact-customers-origin-when-siteshield-is-enabled) 
 and [Cloudflare](https://www.cloudflare.com/ips/) are supported.
@@ -21,19 +24,29 @@ or grab a binary from the [releases page](../../releases).
 ```
 Usage of cdn-securitygroup-sync:
   -acknowledge
-      Acknowledge updated CIDRs on Akamai
+    	Acknowledge updated CIDRs on Akamai
   -add-missing
-      Add missing CIDRs to AWS security group
+    	Add missing CIDRs to AWS security group
   -cloudflare
-      Use Cloudflare instead of Akamai
+    	Use Cloudflare instead of Akamai
   -delete-obsolete
-      Delete obsolete CIDRs from AWS security group
+    	Delete obsolete CIDRs from AWS security group
+  -edgegrid-access-token string
+    	Akamai edgegrid access token
+  -edgegrid-client-secret string
+    	Akamai edgegrid client secret
+  -edgegrid-client-token string
+    	Akamai edgegrid client token
+  -edgegrid-host string
+    	Akamai host
   -list-ss-ids
-      List Akamai siteshield IDs and quit
+    	List Akamai siteshield IDs and quit
   -sgid string
-      AWS security group ID
+    	AWS security group ID
   -ssid int
-      Akamai siteshield ID
+    	Akamai siteshield ID
+  -version
+    	Print version and quit
 ```
 
 Security group (`-sgid`) can be specified via envrionment variable `AWS_SECGROUP_ID`, too.
@@ -58,71 +71,46 @@ that rule will be removed and replaced by correct CDN CIDRs.
 
 # lambda deployment
 
-The lambda approach assumes that you store runtime configuration and credentials in parameter
-store. To do so, [create a KMS key](http://docs.aws.amazon.com/kms/latest/developerguide/create-keys.html)
-and refer to that key during stack deployment, as outlined below. You will also
-have to provide a S3 bucket to store lambda code.
+The lambda approach assumes that you pass in all runtime configuration in either plaintext or
+encrypt it via KMS. If parameters are passed in as plaintext use something like this: (example from
+a terraform configuration):
 
-## put required entries into EC2 parameter store
+```
+  environment {
+    variables = {
+      AWS_SECGROUP_ID = "${var.security_group_id}"
+      AKAMAI_SSID = "${var.akamai_ssid}"
+      AKAMAI_EDGEGRID_HOST          = ""
+      AKAMAI_EDGEGRID_CLIENT_TOKEN  = ""
+      AKAMAI_EDGEGRID_CLIENT_SECRET = ""
+      AKAMAI_EDGEGRID_ACCESS_TOKEN  = ""
+      CSS_ARGS = "-add-missing,-delete-obsolete"
+    }
+  }
+```
 
-The stack will create an IAM role that is granted KMS key access. Parameter store
-entries will use a prefix (which defaults to `css`), which is used to restrict
-access to the entries and allows to deploy multiple, independent instances of the lambda.
+If KMS is used to encrypt credentials, please use the following config block:
 
-Using AWS CLI or AWS console, put these "secure string" parameters into parameter store
-(assuming default prefix `css` in this example):
+```
+  environment {
+    variables = {
+      AWS_SECGROUP_ID = "${var.security_group_id}"
+      KMS_AKAMAI_SSID = "${var.akamai_ssid}"
+      KMS_AKAMAI_EDGEGRID_HOST          = ""
+      KMS_AKAMAI_EDGEGRID_CLIENT_TOKEN  = ""
+      KMS_AKAMAI_EDGEGRID_CLIENT_SECRET = ""
+      KMS_AKAMAI_EDGEGRID_ACCESS_TOKEN  = ""
+      CSS_ARGS = "-add-missing,-delete-obsolete"
+    }
+  }
+```
 
-- `css_AWS_SECGROUP_ID`: The AWS EC2 security group to keep in sync (`sg-....`)
-- `css_CSS_ARGS`: A comma-separated list of arguments for cdn-securitygroup-sync.
-  Those arguments equal the command-line version of cdn-securitygroup-sync,
-  i.e. to fully automate sync for Akamai, use `-add-missing,-delete-obsolete,-acknowledge`.
-  To sync with Cloudflare (which doesn't require acknowledgement), use
-  `-add-missing,-delete-obsolete,-cloudflare`.
-
-If using Akamai, you will have to provide corresponding API credentials:
-
-- `css_AKAMAI_SSID`: The SiteShield ID; can be obtained by using `-list-ss-ids` argument
-- `css_AKAMAI_EDGEGRID_HOST`: Something like `xxxxxxx.luna.akamaiapis.net`
-- `css_AKAMAI_EDGEGRID_CLIENT_TOKEN`
-- `css_AKAMAI_EDGEGRID_CLIENT_SECRET`
-- `css_AKAMAI_EDGEGRID_ACCESS_TOKEN`
-
-There's no need to store any AWS credentials: The stack will create a policy
-that grants the lambda required permissions to update the security group.
 
 ## deploy the lambda handler
 
-There are two options for lambda deployment: Grab a pre-built lambda handler .zip
-from the [releases](../../releases) page and upload it to your S3 bucket OR
-build cdn-securitygroup-sync from source.
+We are using terraform for our deployment. Therefore we have a main.tf file included in this repository. Feel free
+to copy and change this terraform file and adjust it for your needs.
 
-### variant 1 - deploy a pre-built release
-
-- download the latest cdn-securitygroup-sync-lambda-....zip from [releases](../../releases) page
-- upload the .zip to a S3 bucket (do not unzip!)
-- deploy the lambda function using [cloudFormation stack](lambda/cf-stack.yaml),
-  either via AWS console or by cloning this repository and running make:
-
-```bash
-make deploy-prebuilt AWS_REGION=eu-west-1 AWS_ACCOUNT_ID=123456... SSM_KEY_ID=abc-def \
-        S3_BUCKET=my-little-bucket S3_KEY=path/to/cdn-securitygroup-sync-lambda-....zip
-```
-
-### variant 2 - deploy from source
-
-Build dependencies: AWS-CLI, Docker, Go 1.8+, Make.
-
-```bash
-make deploy-source AWS_REGION=eu-west-1 AWS_ACCOUNT_ID=123456... SSM_KEY_ID=abc-def \
-        S3_BUCKET=my-little-bucket
-```
-
-To just build and upload the lambda .zip to your S3 bucket named `my-little-bucket` for later (variant 1) usage:
-
-```bash
-# S3 key / destination path defaults to 'code/cdn-securitygroup-sync-$(VERSION).zip'
-make S3_BUCKET=my-little-bucket
-```
 
 # license
 

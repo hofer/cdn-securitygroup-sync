@@ -1,6 +1,6 @@
 FROM ubuntu:16.04
 
-RUN apt-get update -y && apt-get install -y wget curl git
+RUN apt-get update -y && apt-get install -y wget curl git zip
 
 # Golang
 RUN wget -O /usr/local/go1.9.linux-amd64.tar.gz https://storage.googleapis.com/golang/go1.9.linux-amd64.tar.gz && \

@@ -8,3 +8,4 @@ dependencies
 main
 glide.lock
 vendor
+cdn-securitygroup-sync
