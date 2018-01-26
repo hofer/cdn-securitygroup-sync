@@ -1,0 +1,10 @@
+package: .
+import:
+- package: github.com/akamai/AkamaiOPEN-edgegrid-golang/edgegrid
+- package: github.com/aws/aws-lambda-go/lambda
+- package: github.com/aws/aws-sdk-go/aws
+  subpackages:
+  - awserr
+  - session
+- package: github.com/aws/aws-sdk-go/service/ec2
+- package: github.com/aws/aws-sdk-go/service/kms

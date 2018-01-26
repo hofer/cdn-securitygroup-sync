@@ -22,16 +22,6 @@ type siteShieldMap struct {
 	ProposedCidrs []string `json:"proposedCidrs"`
 }
 
-//func getAkamaiConfig() edgegrid.Config {
-	//return edgegrid.Config{
-	//	Host:         os.Getenv("AKAMAI_EDGEGRID_HOST"),
-	//	ClientToken:  os.Getenv("AKAMAI_EDGEGRID_CLIENT_TOKEN"),
-	//	ClientSecret: os.Getenv("AKAMAI_EDGEGRID_CLIENT_SECRET"),
-	//	AccessToken:  os.Getenv("AKAMAI_EDGEGRID_ACCESS_TOKEN"),
-	//	MaxBody:      1024,
-	//	HeaderToSign: []string{},
-	//	Debug:        false,
-	//}
 func getAkamaiConfig(host string, clientToken string, clientSecret string, accessToken string) edgegrid.Config {
 	return edgegrid.Config{
 		Host:         host,
@@ -46,7 +36,6 @@ func getAkamaiConfig(host string, clientToken string, clientSecret string, acces
 
 func getSiteshieldMaps(config edgegrid.Config) siteShieldMaps {
 	client := http.Client{}
-	//config := getAkamaiConfig()
 
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s/siteshield/v1/maps", config.Host), nil)
 	exitIfError("Akamai request failed", err)
@@ -85,7 +74,6 @@ func printSSIDs(config edgegrid.Config) {
 
 func acknowledgeCIDRs(config edgegrid.Config, ssid int) {
 	client := http.Client{}
-	//config := getAkamaiConfig()
 
 	ackURL := fmt.Sprintf("https://%s/siteshield/v1/maps/%d/acknowledge", config.Host, ssid)
 	req, err := http.NewRequest("POST", ackURL, nil)

@@ -6,3 +6,5 @@
 dependencies
 .idea
 main
+glide.lock
+vendor
