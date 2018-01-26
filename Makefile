@@ -22,4 +22,4 @@ pack:
 	$(RUN_CMD) zip $(PACKAGE).zip $(HANDLER)
 
 clean:
-	$(RUN_CMD) rm -rf $(HANDLER) $(PACKAGE).zip vendor
+	$(RUN_CMD) rm -rf $(HANDLER) $(PACKAGE).zip vendor glide.lock
