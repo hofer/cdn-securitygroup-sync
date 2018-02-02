@@ -4,8 +4,6 @@ phases:
   install:
     commands:
       - echo Entered the install phase...
-      - apt-get update -y
-      - apt-get install -y curl
   build:
     commands:
       - echo Entered the build phase...
