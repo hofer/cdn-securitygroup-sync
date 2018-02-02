@@ -8,7 +8,7 @@ phases:
     commands:
       - echo Entered the build phase...
       - echo Build started on `date`
-      - ls -alh
+      - make
   post_build:
     commands:
       - echo Entered the post_build phase...
